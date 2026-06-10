@@ -18,8 +18,8 @@ A simulated 5G Core network (AMF, SMF, UPF, NRF, PCF) running on EKS with Elasti
 You need an AWS account with admin access and a few CLI tools on your laptop. Not sure if you have everything? Run the check:
 
 ```bash
-git clone https://github.com/modaoud/devops-agent-eks-demo.git
-cd devops-agent-eks-demo
+git clone https://github.com/modaoud/aws-devops-agent-5g-core-workshop.git
+cd aws-devops-agent-5g-core-workshop
 chmod +x prerequisites.sh deploy.sh verify.sh scripts-5g/*.sh
 ./prerequisites.sh
 ```
