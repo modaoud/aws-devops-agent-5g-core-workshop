@@ -6,12 +6,12 @@ Demonstrate [AWS DevOps Agent](https://docs.aws.amazon.com/devops-agent/) invest
 
 A simulated 5G Core network (AMF, SMF, UPF, NRF, PCF) running on EKS with ElastiCache Redis as the service registry backend. Four pre-built failure scenarios inject real infrastructure problems that the DevOps Agent investigates end-to-end.
 
-| Scenario | Failure Type | Agent Finds | Time |
-|----------|-------------|-------------|------|
-| 1. SG Change | Security Group blocks Redis | CloudTrail: who/when/IP | ~2 min |
-| 2. ASG Ceiling | Node group can't scale | ASG maxSize, node saturation | ~4 min |
-| 3. Bad Deploy | Invalid image tag pushed | EKS audit log: exact kubectl command | ~3 min |
-| 4. Scaling Storm | HPA oscillation | Feedback loop, connection pooling bug | ~8 min |
+| Scenario | Telco Impact | Root Cause | Agent Finds | Time |
+|----------|-------------|------------|-------------|------|
+| 1. SG Change | NRF registry offline → all NF discovery fails → total 5G core outage | Security Group blocks Redis port 6379 | CloudTrail: who revoked the rule, when, from which IP | ~2 min |
+| 2. ASG Ceiling | AMF can't scale during busy hour → UE registration timeouts | ASG max capped at current node count | ASG maxSize limit, node saturation at 17/17 pods, Cluster Autoscaler blocked | ~4 min |
+| 3. Bad Deploy | AMF fleet down → no subscriber registrations or handovers | Non-existent image tag pushed via kubectl | EKS audit log: exact `kubectl set image` command, user, IP, kubectl version | ~3 min |
+| 4. Scaling Storm | Intermittent PDU session failures during busy hour (oscillating) | HPA target 15% + 0s stabilization window | Feedback loop mechanism, NRF connection pooling bug (450× Redis connection spike) | ~8 min |
 
 ## Quick Start
 
