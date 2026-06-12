@@ -13,7 +13,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../scripts/common.sh"
+source "${SCRIPT_DIR}/common.sh"
 
 NAMESPACE="demo-5g"
 BAD_IMAGE="public.ecr.aws/aws-containers/5g-amf:v2.1.0-rc3"  # Does not exist
