@@ -2,7 +2,7 @@
 # =============================================================================
 # Scenario 4 (5G): "The scaling storm during busy hour"
 #
-# Simulates: An engineer misconfigures the AMF HPA — CPU target too low (5%),
+# Simulates: An engineer misconfigures the AMF HPA — CPU target too low (15%),
 # stabilization window removed, aggressive scale policies. Under load, the HPA
 # thrashes between scale-up and scale-down, causing pod churn and intermittent
 # registration failures.
@@ -29,7 +29,7 @@ case "${1:-inject}" in
     echo "  Misconfiguring AMF HPA..."
     kubectl patch hpa amf-hpa -n ${NAMESPACE} --type=merge -p '{
       "spec": {
-        "metrics": [{"type": "Resource", "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 5}}}],
+        "metrics": [{"type": "Resource", "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 15}}}],
         "behavior": {
           "scaleDown": {"stabilizationWindowSeconds": 0, "policies": [{"type": "Percent", "value": 50, "periodSeconds": 15}]},
           "scaleUp": {"stabilizationWindowSeconds": 0, "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}]}
@@ -37,7 +37,7 @@ case "${1:-inject}" in
       }
     }'
 
-    echo "  ✗ HPA target: 70% → 5% CPU"
+    echo "  ✗ HPA target: 70% → 15% CPU"
     echo "  ✗ Stabilization window: 60s → 0s (both directions)"
     echo "  ✗ Scale policies: aggressive (50% down / 100% up every 15s)"
     echo ""
@@ -73,7 +73,7 @@ case "${1:-inject}" in
     echo ""
     echo "  💡 WHAT TO LOOK FOR:"
     echo "     • HPA oscillation pattern (2→9→2→7→...)"
-    echo "     • CPU target too low (5%) causing over-reaction"
+    echo "     • CPU target too low (15%) causing over-reaction"
     echo "     • Stabilization window at 0s allowing instant scale-down"
     echo "     • Redis connection churn from rapid pod turnover"
     echo ""
