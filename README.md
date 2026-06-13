@@ -117,35 +117,67 @@ Run the automated check:
 
 ## Quick Start
 
-### Option 1: Workshop Event (CloudFormation — recommended for guided workshops)
+### Option 1: Workshop Event (CloudFormation — zero local tooling required)
 
-If you're attending a workshop event with AWS-provided accounts, use the one-click CloudFormation template:
+Use this path if you're attending a guided workshop with AWS-provided accounts,
+or if you want a one-click deployment without installing Terraform/kubectl locally.
+Everything runs on an EC2 workstation provisioned by the stack.
 
-1. **Launch the stack** in the AWS Console:
-   - Template: `cfn/workshop-infra.yaml`
-   - Region: us-east-1
-   - Accept defaults → Create Stack
-2. **Wait ~20-25 minutes** for the stack to reach `CREATE_COMPLETE`
-   - Optionally: SSM into the EC2 and run `cat /opt/workshop/status.txt` to watch progress
-3. **Connect** via Session Manager (link in stack Outputs)
-4. **Verify** the environment:
+**Cost:** ~$6/hour (EKS + Redis + EC2 workstation). Destroy the stack when done.
+
+1. **Launch the stack** in your AWS account:
+   - Open **CloudFormation → Create Stack → Upload a template file**
+   - Upload [`cfn/workshop-infra.yaml`](cfn/workshop-infra.yaml) — or use the S3 URL provided by your workshop facilitator
+   - Region: **us-east-1** (recommended)
+   - Parameters: leave all defaults → Next → Next → ✅ Acknowledge IAM capabilities → Create Stack
+
+2. **Wait ~20 minutes** for `CREATE_COMPLETE` — the stack provisions VPC, EKS, Redis, deploys all 5G NFs, and only signals complete when the environment is healthy.
+
+3. **Open a terminal on the workstation** — go to CloudFormation → Outputs tab, click the **SSMSessionUrl** link. This opens a browser-based shell on the EC2 instance (no SSH or key pair needed).
    ```bash
    cd /opt/workshop/repo
-   ./verify.sh
+   cat /opt/workshop/status.txt   # should say ✅ READY
+   ./verify.sh                    # confirm all green
    ```
-5. **Create DevOps Agent Space** (see docs/workshop-guide.md)
-6. **Run scenarios!**
+
+4. **Create DevOps Agent Space** (AWS Console — ~5 min):
+   - **DevOps Agent Console → Create Agent Space** → name: `5g-core-demo`, let it auto-create the IAM role
+   - **EKS Console → Cluster (`devops-agent-demo`) → Access tab → Create access entry**
+     - Principal ARN: copy the agent role from Agent Space → Capabilities → Cloud
+     - Access Policy: `AmazonAIOpsAssistantPolicy` — Scope: Cluster
+   - **Verify** — click **Operator access** in the left sidebar to open the chat interface, then ask:
+     *"List all pods in the demo-5g namespace"*
+   - You should see NRF, AMF, SMF, UPF, PCF, ue-simulator pods listed
+
+5. **Run scenarios!**
+   ```bash
+   ./scripts-5g/scenario-1-sg-change.sh inject
+   # → Open Agent Space → Operator access → paste the prompt:
+   #   "The NRF service is returning errors. Investigate."
+   # → Watch the cross-layer investigation (~2 min)
+   ./scripts-5g/scenario-1-sg-change.sh restore
+   ```
+
+   See [docs/scenario-1.md](docs/scenario-1.md) through [docs/scenario-4.md](docs/scenario-4.md) for all four scenarios.
+
+> **Workshop Studio events:** If your facilitator pre-provisioned the environment,
+> skip steps 1–2. Start at step 3 — the SSM link is in your Event Dashboard.
+
+---
 
 ### Option 2: Self-Paced (Terraform — full control)
 
-If you're using your own AWS account and local tools:
+Run these commands from your **local machine** (macOS or Linux) with AWS CLI
+configured for an account with **AdministratorAccess**.
+
+**Cost:** ~$5/hour while running. Destroy with `terraform destroy` when done.
 
 ```bash
 # Clone
 git clone https://github.com/aws-samples/sample-devops-agent-5g-core-workshop.git
 cd sample-devops-agent-5g-core-workshop
 
-# 1. Check prerequisites
+# 1. Check prerequisites (tools + AWS credentials)
 ./prerequisites.sh
 
 # 2. Deploy infrastructure (~15 min)
@@ -155,24 +187,56 @@ terraform init && terraform apply
 cd ..
 
 # 3. Deploy 5G Core application (~2 min)
+#    This auto-configures kubectl and deploys all network functions
 ./deploy.sh
 
 # 4. Verify everything is healthy
 ./verify.sh
-
-# 5. Create DevOps Agent Space (AWS Console — see docs/workshop-guide.md)
-#    - Create space, assign IAM role
-#    - Add EKS access entry with AmazonAIOpsAssistantPolicy
-#    - Verify agent can list pods
-
-# 6. Run a scenario
-./scripts-5g/scenario-1-sg-change.sh inject     # break something
-# → Open DevOps Agent → paste the prompt from docs/scenario-1.md
-# → Watch the investigation
-./scripts-5g/scenario-1-sg-change.sh restore    # fix it
 ```
 
 ![verify.sh output — all green](docs/images/verify-output.png)
+
+#### 5. Create DevOps Agent Space (AWS Console — ~5 min)
+
+This is a one-time manual step:
+
+1. **AWS Console → DevOps Agent → Create Agent Space**
+   - Name: `5g-core-demo` — let it auto-create the IAM role
+2. **EKS Console → Cluster (`devops-agent-demo`) → Access tab → Create access entry**
+   - IAM Principal ARN: copy the role from Agent Space → Capabilities → Cloud
+   - Access Policy: `AmazonAIOpsAssistantPolicy` — Scope: Cluster
+3. **Verify** — click **Operator access** in the left sidebar to open the chat interface, then ask:
+   *"List all pods in the demo-5g namespace"*
+   - You should see NRF, AMF, SMF, UPF, PCF, ue-simulator pods
+
+4. **(Optional)** Add the agent role to Terraform for alarm permissions:
+   ```bash
+   # Edit terraform/terraform.tfvars — set devops_agent_role_arn to the role ARN from step 1
+   cd terraform/ && terraform apply && cd ..
+   ```
+
+#### 6. Run scenarios!
+
+```bash
+# Inject a failure
+./scripts-5g/scenario-1-sg-change.sh inject
+
+# → Open Agent Space → Operator access → paste the prompt:
+#   "The NRF service is returning errors. Investigate."
+# → Watch the cross-layer investigation (~2 min)
+
+# Restore when done
+./scripts-5g/scenario-1-sg-change.sh restore
+```
+
+See [docs/scenario-1.md](docs/scenario-1.md) through [docs/scenario-4.md](docs/scenario-4.md) for all four scenarios with expected investigation paths.
+
+#### Cleanup
+
+```bash
+kubectl delete namespace demo-5g
+cd terraform/ && terraform destroy
+```
 
 ## Repository Structure
 
